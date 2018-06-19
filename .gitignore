@@ -1,0 +1,9 @@
+out/
+src-out/
+builddir/
+cache/
+*.rpm
+*.deb
+.*.swp
+*.gpg
+_build/
