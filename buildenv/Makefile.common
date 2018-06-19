@@ -23,11 +23,14 @@ SOURCE_TAR_CMD := cd `dirname $(SOURCE_DIR)` &&\
 
 # Some targets
 DIRECTORIES := $(BUILD_DIR) $(OUT_DIR) $(OUT_SRC) $(CACHE) \
-  $(BUILD_DIR)/deb.$(DIST) $(SOURCE_DIR) $(BUILD_DIR)/rpm.$(DIST)
+  $(BUILD_DIR)/deb.$(DIST).$(ARCH) $(SOURCE_DIR) $(BUILD_DIR)/rpm.$(DIST).$(ARCH)
 
 #### START common targets
 
-all: deb rpm
+all:
+	$(MAKE) deb_chroot DIST=$(DIST) ARCH=amd64 OUT_DIR=$(LOCAL_REPO_PATH)
+	$(MAKE) deb_chroot DIST=$(DIST) ARCH=i386  OUT_DIR=$(LOCAL_REPO_PATH)
+	$(MAKE) repo
 
 list_dist:
 	@sed -e 's/  \(.*\).*/\1/;tx;d;:x' ./buildenv/get_dist.sh | grep -v echo | sed 's/\(.*\))/* \1/'
@@ -38,8 +41,8 @@ $(DIRECTORIES):
 	mkdir -p $(OUT_DIR)
 	mkdir -p $(OUT_SRC)
 	mkdir -p $(CACHE)
-	mkdir -p $(BUILD_DIR)/deb.$(DIST)
-	mkdir -p $(BUILD_DIR)/rpm.$(DIST)
+	mkdir -p $(BUILD_DIR)/deb.$(DIST).$(ARCH)
+	mkdir -p $(BUILD_DIR)/rpm.$(DIST).$(ARCH)
 	mkdir -p $(SOURCE_DIR)
 
 # Cleaning targets
@@ -93,7 +96,7 @@ DEB_CONTENT_IN := $(DEB_CONTENT_DIST) \
     done \
   )
 DEB_CONTENT_OUT := $(subst .dist.$(DIST),,\
-  $(addprefix $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/, \
+  $(addprefix $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/, \
     $(DEB_CONTENT_IN) \
   ) \
 )
@@ -118,26 +121,26 @@ DEB_COPYRIGHT_IN := debian/copyright
 endif
 
 
-DEB_ARCHIVE := $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)_$(VERSION).orig.tar.gz
+DEB_ARCHIVE := $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)_$(VERSION).orig.tar.gz
 
 DEB_PREPARE := $(DEB_ARCHIVE) $(DEB_CONTENT_OUT) \
-  $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/debian/changelog \
-  $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/debian/control \
-  $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/debian/rules \
-  $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/debian/copyright
+  $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/debian/changelog \
+  $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/debian/control \
+  $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/debian/rules \
+  $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/debian/copyright
 
 DEB_CONTROL_RULE_COPYRIGHT := \
-  $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/debian/control \
-  $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/debian/rules \
-  $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/debian/copyright
+  $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/debian/control \
+  $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/debian/rules \
+  $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/debian/copyright
 
 DEB_CHANGELOG := \
-  $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/debian/changelog
+  $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/debian/changelog
 
 # Copy all the files of debian/ packaging directory
 $(DEB_CONTENT_OUT): $(DEB_CONTENT_IN)
-	mkdir -p $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/debian/
-	f=$(subst $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/,,$@);\
+	mkdir -p $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/debian/
+	f=$(subst $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/,,$@);\
 	if [ -e $$f.dist.$(DIST) ];\
 	then\
 	    cp -r $$f.dist.$(DIST) $@;\
@@ -147,7 +150,7 @@ $(DEB_CONTENT_OUT): $(DEB_CONTENT_IN)
 
 # Substitute version and package name in control file
 $(DEB_CONTROL_RULE_COPYRIGHT): $(DEB_CONTROL_IN) $(DEB_RULE_IN) $(DEB_COPYRIGHT_IN) Makefile
-	f=$(subst $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/,,$@);\
+	f=$(subst $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/,,$@);\
 	if [ -e $$f.dist.$(DIST) ];\
 	then\
 	    cp -r $$f.dist.$(DIST) $@;\
@@ -168,7 +171,7 @@ $(DEB_CONTROL_RULE_COPYRIGHT): $(DEB_CONTROL_IN) $(DEB_RULE_IN) $(DEB_COPYRIGHT_
 # Generate generic changelog
 $(DEB_CHANGELOG): ./debian/changelog
 	echo $(DIST_CODE) $(DIST_TAG)
-	mkdir -p $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION)/debian
+	mkdir -p $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION)/debian
 	printf "$(PKGNAME) ($(VERSION)-$(RELEASE)~$(PKG_ORG)+$(DIST_CODE)$(DIST_TAG)) $(DIST); urgency=low\\n"  > $@
 	printf "\\n  * New version\\n\\n" >> $@
 	printf " -- $(MAINTAINER) <$(MAINTAINER_EMAIL)>  %s\\n" "Thu, 1 Jan 1970 00:00:00 +0000" >> $@
@@ -178,9 +181,9 @@ $(DEB_ARCHIVE): $(SOURCE_ARCHIVE) | $(DIRECTORIES)
 	cp $(SOURCE_ARCHIVE) $(DEB_ARCHIVE)
 
 # Build the deb(s) and put it in out directory
-$(BUILD_DIR)/pkg_built.deb.$(DIST): $(DEB_PREPARE) | $(DIRECTORIES)
-	tar -xf $(DEB_ARCHIVE) -C $(BUILD_DIR)/deb.$(DIST)
-	cd $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION) && \
+$(BUILD_DIR)/pkg_built.deb.$(DIST).$(ARCH): $(DEB_PREPARE) | $(DIRECTORIES)
+	tar -xf $(DEB_ARCHIVE) -C $(BUILD_DIR)/deb.$(DIST).$(ARCH)
+	cd $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION) && \
 	dpkg-buildpackage -us -uc;\
 	if [ $$? -ne 0 ];\
 		then touch $(BUILD_DIR)/failure.$(DIST);exit 1;\
@@ -190,12 +193,12 @@ $(BUILD_DIR)/pkg_built.deb.$(DIST): $(DEB_PREPARE) | $(DIRECTORIES)
 	find $(BUILD_DIR)/ -type f -name "*.orig.tar.gz" -print0 | xargs -i -n 1 -0 cp {} $(OUT_SRC)/
 	find $(BUILD_DIR)/ -type f -name "*.dsc" -print0 | xargs -i -n 1 -0 mv {} $(OUT_SRC)/
 	find $(BUILD_DIR)/ -type f -name "*debian.tar.xz" -print0 | xargs -i -n 1 -0 mv {} $(OUT_SRC)/
-	touch $(BUILD_DIR)/pkg_built.deb.$(DIST)
+	touch $(BUILD_DIR)/pkg_built.deb.$(DIST).$(ARCH)
 
 # Build the deb(s) in a chroot (cowbuilder) and put it in out directory
-$(BUILD_DIR)/pkg_built_chroot.deb.$(DIST): $(DEB_PREPARE) | $(DIRECTORIES)
+$(BUILD_DIR)/pkg_built_chroot.deb.$(DIST).$(ARCH): $(DEB_PREPARE) | $(DIRECTORIES)
 	cowbuilder --help >/dev/null
-	cd $(BUILD_DIR)/deb.$(DIST)/$(PKGNAME)-$(VERSION) && \
+	cd $(BUILD_DIR)/deb.$(DIST).$(ARCH)/$(PKGNAME)-$(VERSION) && \
 	     dpkg-source -b ./
 	if ! [ "$(SKIP_COWBUILDER_SETUP)" = "true" ];then\
 	    flock -x /tmp/cowbuilder.$(DIST).lock -c '\
@@ -218,7 +221,7 @@ $(BUILD_DIR)/pkg_built_chroot.deb.$(DIST): $(DEB_PREPARE) | $(DIRECTORIES)
 	fi
 	export TMPDIR=/tmp/;\
 	  $(SUDO) cowbuilder --build \
-	  	$(BUILD_DIR)/deb.$(DIST)/*.dsc  \
+	  	$(BUILD_DIR)/deb.$(DIST).$(ARCH)/*.dsc  \
 	  	--basepath $(COW_DIR)/$(COW_NAME) \
 	  	--buildresult $(OUT_DIR)/ $(OTHERMIRROR) \
 	  	--mirror $(DEB_MIRROR) $(BINDMOUNT); \
@@ -231,7 +234,7 @@ $(BUILD_DIR)/pkg_built_chroot.deb.$(DIST): $(DEB_PREPARE) | $(DIRECTORIES)
 	find $(OUT_DIR)/ -type f -name "*.changes" -print0 | xargs -i -n 1 -0 mv {} $(OUT_SRC)/
 	find $(OUT_DIR)/ -type f -name "*.buildinfo" -print0 | xargs -i -n 1 -0 mv {} $(OUT_SRC)/
 	find $(OUT_DIR)/ -type f -name "*debian.tar.xz" -print0 | xargs -i -n 1 -0 mv {} $(OUT_SRC)/
-	touch $(BUILD_DIR)/pkg_built_chroot.deb.$(DIST)
+	touch $(BUILD_DIR)/pkg_built_chroot.deb.$(DIST).$(ARCH)
 
 deb_get_chroot_path:
 	@echo `readlink -f $(COW_DIR)/$(COW_NAME)`
@@ -240,10 +243,10 @@ deb_get_chroot_path:
 # If the build is not to be skipped
 ifneq ($(TO_SKIP), true)
 # The target to be called for building .deb in chroot
-deb_chroot: $(BUILD_DIR)/pkg_built_chroot.deb.$(DIST)
+deb_chroot: $(BUILD_DIR)/pkg_built_chroot.deb.$(DIST).$(ARCH)
 
 # the target to be called for building .deb
-deb: $(BUILD_DIR)/pkg_built.deb.$(DIST)
+deb: $(BUILD_DIR)/pkg_built.deb.$(DIST).$(ARCH)
 
 else
 deb_chroot:
@@ -384,6 +387,31 @@ rpm_chroot:
 endif
 
 #### END RPM targets
+
+$(DEB_OUT_DIR)/dists/$(DIST)/InRelease: $(DEBS) $(DEB_OUT_DIR)/conf/distributions
+	ls $(LOCAL_REPO_PATH)/*.deb
+	echo $(DEBS)
+	cd $(DEB_OUT_DIR) &&\
+	for deb in $(DEBS);\
+	do\
+	  reprepro -C $(DEB_REPO_COMPONENT) remove $(DIST) `dpkg-deb -W $$deb | sed 's/\t.*//'` ;\
+	  reprepro -P optional -S $(PKG_ORIGIN) -C $(DEB_REPO_COMPONENT) \
+	  -Vb . includedeb $(DIST) $$deb || exit 1;\
+	done
+
+$(DEB_OUT_DIR)/conf/distributions: buildenv/Makefile.config
+	mkdir -p $(DEB_OUT_DIR)/conf/
+	echo "$$DEB_REPO_CONFIG" >$(DEB_OUT_DIR)/conf/distributions
+
+$(OUT_DIR)/GPG-KEY.pub:
+	mkdir -p $(OUT_DIR)
+	gpg --armor --output $(OUT_DIR)/GPG-KEY.pub --export "$(GPG_KEY)"
+
+internal_deb_repo: $(DEB_OUT_DIR)/dists/$(DIST)/InRelease
+
+repo: $(DEB_REPO_DEP) $(OUT_DIR)/GPG-KEY.pub
+	$(MAKE) internal_deb_repo
+
 
 #### START help target ####
 

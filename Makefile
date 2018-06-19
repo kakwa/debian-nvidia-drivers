@@ -19,6 +19,9 @@ DESCRIPTION=$(SUMMARY)
 # License of the upstream project
 LICENSE=Upstream License
 
+# GPG Key used to sign the repostory
+GPG_KEY := kakwa
+
 # Distribution versions to skip
 #
 # format: space separated list of rules.
@@ -34,32 +37,19 @@ LICENSE=Upstream License
 ########
 
 # example of source recovery url
-URL_SRC_amd64=http://us.download.nvidia.com/XFree86/Linux-x86_64/390.67/NVIDIA-Linux-x86_64-390.67.run
-URL_SRC_i386=http://us.download.nvidia.com/XFree86/Linux-x86/390.67/NVIDIA-Linux-x86-390.67.run
-URL_SRC_armv7=http://us.download.nvidia.com/XFree86/Linux-x86-ARM/390.67/NVIDIA-Linux-armv7l-gnueabihf-390.67.run
+URL_SRC_amd64=http://us.download.nvidia.com/XFree86/Linux-x86_64/$(VERSION)/NVIDIA-Linux-x86_64-$(VERSION).run
+URL_SRC_i386=http://us.download.nvidia.com/XFree86/Linux-x86/$(VERSION)/NVIDIA-Linux-x86-$(VERSION).run
+URL_SRC_armv7=http://us.download.nvidia.com/XFree86/Linux-x86-ARM/$(VERSION)/NVIDIA-Linux-armv7l-gnueabihf-$(VERSION).run
 
 # Including common rules and targets 
 include buildenv/Makefile.common
-
-# preparation hook for sources
-# source archive must be recovered here, optionaly reworked, and
-# moved to $(SOURCE_ARCHIVE) (the expected path of the source archive for the
-# rest of the build)
-#
-# $(WGS) should be the prefered way to recover archives
-# (add checksum against a manifest file).
-# use 'make manifest' to generate/update this manifest file.
-
-# Example of simple recovery, with good upstream
-#$(SOURCE_ARCHIVE): $(SOURCE_DIR) $(CACHE) Makefile MANIFEST
-#	$(WGS) -u $(URL_SRC) -o $(SOURCE_ARCHIVE)
 
 # more complex case with upstream source rework and rebuilding of the tar
 $(SOURCE_ARCHIVE): $(SOURCE_DIR) $(CACHE) Makefile MANIFEST
 	mkdir -p $(SOURCE_DIR)/amd64
 	mkdir -p $(SOURCE_DIR)/i386
 	mkdir -p $(SOURCE_DIR)/armhf
-	$(WGS) -u $(URL_SRC_amd64) -o $(SOURCE_DIR)/amd64/NVIDIA-Linux-x86_64-390.67.run
-	$(WGS) -u $(URL_SRC_i386) -o $(SOURCE_DIR)/i386/NVIDIA-Linux-x86-390.67.run
-	$(WGS) -u $(URL_SRC_armv7) -o $(SOURCE_DIR)/armhf/NVIDIA-Linux-armv7l-gnueabihf-390.67.run
+	$(WGS) -u $(URL_SRC_amd64) -o $(SOURCE_DIR)/amd64/NVIDIA-Linux-x86_64-$(VERSION).run
+	$(WGS) -u $(URL_SRC_i386) -o $(SOURCE_DIR)/i386/NVIDIA-Linux-x86-$(VERSION).run
+	$(WGS) -u $(URL_SRC_armv7) -o $(SOURCE_DIR)/armhf/NVIDIA-Linux-armv7l-gnueabihf-$(VERSION).run
 	$(SOURCE_TAR_CMD)
